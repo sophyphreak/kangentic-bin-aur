@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -35,6 +38,10 @@ jobs:
             StrictHostKeyChecking yes
           EOF
           chown -R builder:builder /home/builder/.ssh
+
+      - name: Test AUR SSH access
+        run: |
+          su builder -c "ssh -o BatchMode=yes aur@aur.archlinux.org help >/dev/null"
 
       - name: Update package and publish to AUR
         run: |
