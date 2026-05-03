@@ -47,3 +47,33 @@ jobs:
         run: |
           chown -R builder:builder "$GITHUB_WORKSPACE"
           su builder -c "cd '$GITHUB_WORKSPACE' && ./scripts/update-and-publish.sh"
+
+      - name: Write sync summary
+        if: success()
+        run: |
+          . "$GITHUB_WORKSPACE/sync-result.env"
+
+          {
+            echo "## Kangentic AUR sync"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Status | ${status} |"
+            echo "| Updated package files | ${updated} |"
+            echo "| Previous package version | ${current_version} |"
+            echo "| Latest upstream release | ${latest_version} |"
+            echo "| Started | ${run_started_utc} |"
+            echo "| Completed | ${run_completed_utc} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$updated" == "true" ]]; then
+            {
+              echo "| Release asset | ${asset} |"
+              echo "| SHA-256 | \`${sha256}\` |"
+              echo "| GitHub maintenance commit | \`${github_commit}\` |"
+              echo "| AUR package commit | \`${aur_commit}\` |"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo "No update was needed; the AUR package already matched the latest upstream release." >> "$GITHUB_STEP_SUMMARY"
+          fi
