@@ -1,0 +1,42 @@
+name: Update AUR Package
+
+on:
+  schedule:
+    - cron: "30 15 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git openssh curl jq
+          useradd -m builder
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure SSH for AUR
+        run: |
+          install -d -m 700 /home/builder/.ssh
+          printf '%s\n' "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > /home/builder/.ssh/aur
+          chmod 600 /home/builder/.ssh/aur
+          ssh-keyscan -t ed25519 aur.archlinux.org > /home/builder/.ssh/known_hosts
+          cat > /home/builder/.ssh/config <<'EOF'
+          Host aur.archlinux.org
+            User aur
+            IdentityFile ~/.ssh/aur
+            StrictHostKeyChecking yes
+          EOF
+          chown -R builder:builder /home/builder/.ssh
+
+      - name: Update package and publish to AUR
+        run: |
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          su builder -c "cd '$GITHUB_WORKSPACE' && ./scripts/update-and-publish.sh"
